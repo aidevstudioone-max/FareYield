@@ -66,8 +66,11 @@ export default function Layout() {
             <button className="lg:hidden text-slate-500" onClick={() => setOpen(true)}>
               <Icon name="Menu" />
             </button>
-            <div className="text-sm text-slate-500 truncate">
-              {settings.companyName} <span className="text-slate-300 hidden sm:inline">/ {activeLabel}</span>
+            <div className="text-sm truncate">
+              <span className="sm:hidden font-medium text-slate-800">{activeLabel}</span>
+              <span className="hidden sm:inline text-slate-500">
+                {settings.companyName} <span className="text-slate-300">/ {activeLabel}</span>
+              </span>
             </div>
           </div>
           <Badge />
@@ -82,9 +85,9 @@ export default function Layout() {
 
 function Badge() {
   return (
-    <div className="flex items-center gap-1.5 text-xs font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded-full px-2.5 py-1">
+    <div className="flex items-center gap-1.5 text-xs font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded-full px-2 py-1 sm:px-2.5 shrink-0">
       <Icons.Sparkles size={13} />
-      ML_BLEND engine active
+      <span className="hidden sm:inline">ML_BLEND engine active</span>
     </div>
   )
 }
