@@ -1,7 +1,8 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Card, currency, currencyK, DemandBadge, EmptyState, MultiLineChart, PageHeader, pct, ProgressBar, StatCard } from '../components/ui'
-import { dashboardKpis, enrichedTrips, getConfig, priceAlerts, recommendationFor, revenueTrend, routePerformance } from '../lib/selectors'
+import LiveTicker from '../components/LiveTicker'
+import { competitorAvgForRoute, dashboardKpis, enrichedTrips, getConfig, priceAlerts, recommendationFor, revenueTrend, routePerformance } from '../lib/selectors'
 
 export default function Dashboard() {
   const kpis = dashboardKpis()
@@ -12,12 +13,18 @@ export default function Dashboard() {
 
   const nearTerm = enrichedTrips().filter((e) => e.daysToDeparture <= 14)
   const bands = { low: 0, moderate: 0, high: 0, veryHigh: 0 }
+  let featured = nearTerm[0]
+  let featuredDemand = -1
   nearTerm.forEach((e) => {
     const score = recommendationFor(e, config).demandScore
     if (score >= 75) bands.veryHigh++
     else if (score >= 58) bands.high++
     else if (score >= 40) bands.moderate++
     else bands.low++
+    if (score > featuredDemand) {
+      featuredDemand = score
+      featured = e
+    }
   })
 
   return (
@@ -26,6 +33,23 @@ export default function Dashboard() {
         title="Dynamic pricing, live"
         subtitle="How the pricing engine is valuing every upcoming departure right now, and what it's changed versus flat fares."
       />
+
+      {featured && (
+        <div className="mb-4">
+          <LiveTicker
+            label={`${featured.route.origin} → ${featured.route.destination}`}
+            sublabel={`${featured.bus.type.replace(/_/g, ' ')} · ${featured.trip.date} · ${featured.bus.departureTime}`}
+            basePrice={featured.trip.basePrice}
+            baseOccupancy={featured.occupancyPct}
+            baseCompetitor={competitorAvgForRoute(featured.route.id) || featured.trip.basePrice}
+            daysToDeparture={featured.daysToDeparture}
+            dateISO={featured.trip.date}
+            isHoliday={featured.trip.isHoliday}
+            popularity={featured.route.popularity}
+            config={config}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <StatCard label="Revenue (30d, dynamic)" value={currencyK(kpis.revenue30d)} tone="good" />
