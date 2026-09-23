@@ -134,6 +134,80 @@ export function routePerformance(): RoutePerformance[] {
     .sort((a, b) => b.avgOccupancy - a.avgOccupancy)
 }
 
+export interface PastDayReport {
+  date: string
+  routesOperated: number
+  tripsCount: number
+  selfOccupancyPct: number
+  marketOccupancyPct: number
+}
+
+export function pastDayReport(): PastDayReport | null {
+  const daily = getAll<DailyRevenueRecord>(COLLECTIONS.dailyRevenue)
+  const last = daily[daily.length - 1]
+  if (!last) return null
+  return {
+    date: last.date,
+    routesOperated: last.routesOperated,
+    tripsCount: last.tripsCount,
+    selfOccupancyPct: last.selfOccupancyPct,
+    marketOccupancyPct: last.marketOccupancyPct
+  }
+}
+
+export interface Past30DaysReport {
+  from: string
+  to: string
+  revenue: number
+  seatsSold: number
+  asp: number
+  occupancyPct: number
+  mainPct: number
+  viaPct: number
+  onlineBookings: number
+  offlineBookings: number
+}
+
+export function past30DaysReport(): Past30DaysReport | null {
+  const daily = getAll<DailyRevenueRecord>(COLLECTIONS.dailyRevenue).slice(-30)
+  if (!daily.length) return null
+  const revenue = daily.reduce((s, d) => s + d.dynamicRevenue, 0)
+  const seatsSold = daily.reduce((s, d) => s + d.seatsSold, 0)
+  const mainSeats = daily.reduce((s, d) => s + d.mainSeats, 0)
+  const viaSeats = daily.reduce((s, d) => s + d.viaSeats, 0)
+  const onlineBookings = daily.reduce((s, d) => s + d.onlineBookings, 0)
+  const offlineBookings = daily.reduce((s, d) => s + d.offlineBookings, 0)
+  const occupancyPct = daily.reduce((s, d) => s + d.selfOccupancyPct, 0) / daily.length
+  return {
+    from: daily[0].date,
+    to: daily[daily.length - 1].date,
+    revenue,
+    seatsSold,
+    asp: seatsSold ? revenue / seatsSold : 0,
+    occupancyPct,
+    mainPct: mainSeats + viaSeats ? (mainSeats / (mainSeats + viaSeats)) * 100 : 0,
+    viaPct: mainSeats + viaSeats ? (viaSeats / (mainSeats + viaSeats)) * 100 : 0,
+    onlineBookings,
+    offlineBookings
+  }
+}
+
+export function earningsTrend(days = 30): DailyRevenueRecord[] {
+  return getAll<DailyRevenueRecord>(COLLECTIONS.dailyRevenue).slice(-days)
+}
+
+// Compares the same weekday across recent weeks (e.g. every Tuesday for the
+// last 6 weeks) rather than just the last N calendar days.
+export function weekOnWeekRows(weeks = 6): DailyRevenueRecord[] {
+  const daily = getAll<DailyRevenueRecord>(COLLECTIONS.dailyRevenue)
+  if (!daily.length) return []
+  const targetDow = new Date(daily[daily.length - 1].date).getDay()
+  return daily
+    .filter((d) => new Date(d.date).getDay() === targetDow)
+    .slice(-weeks)
+    .reverse()
+}
+
 export function priceHistoryForTrip(tripId: string): PriceHistoryEntry[] {
   return getAll<PriceHistoryEntry>(COLLECTIONS.priceHistory)
     .filter((p) => p.tripId === tripId)

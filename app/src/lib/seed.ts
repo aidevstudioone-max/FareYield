@@ -188,12 +188,31 @@ export function seedAll() {
     const avgDemandScore = int(38, 78)
     const avgFare = 700 + (avgDemandScore - 50) * 6 + int(-40, 40)
     const staticFare = 720
+    const tripsCount = int(64, 78)
+    const selfOccupancyPct = int(78, 104) // can exceed 100 briefly: overbooking on standing-room state permits
+    const marketOccupancyPct = Math.max(45, Math.min(100, selfOccupancyPct - int(-8, 22)))
+    const mainShare = 0.55 + rnd() * 0.15
+    const mainSeats = Math.round(seatsSold * mainShare)
+    const onlineShare = 0.88 + rnd() * 0.08
+    const onlineBookings = Math.round(seatsSold * onlineShare)
+    const advanceShare = 0.55 + rnd() * 0.2
     dailyRevenue.push({
       date,
       dynamicRevenue: Math.round(seatsSold * avgFare),
       staticRevenue: Math.round(seatsSold * staticFare * (0.9 + rnd() * 0.1)),
       seatsSold,
-      avgDemandScore
+      avgDemandScore,
+      tripsCount,
+      routesOperated: ROUTE_SEED.length,
+      selfOccupancyPct,
+      marketOccupancyPct,
+      mainSeats,
+      viaSeats: seatsSold - mainSeats,
+      onlineBookings,
+      offlineBookings: seatsSold - onlineBookings,
+      advanceBookings: Math.round(seatsSold * advanceShare),
+      multiBookings: int(120, 210),
+      postDepartureBookings: int(180, 340)
     })
   }
 

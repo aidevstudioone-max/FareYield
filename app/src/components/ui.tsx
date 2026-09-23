@@ -489,3 +489,134 @@ export function MultiLineChart({
     </div>
   )
 }
+
+// Semi-circle speedometer gauge with red/amber/green bands — used to benchmark
+// self occupancy against the market. `max` sets the scale (occupancy can run
+// past 100% here, since a route can oversell standing-room-permitted seats).
+export function Gauge({ value, max = 120, label, size = 168 }: { value: number; max?: number; label?: string; size?: number }) {
+  const cx = size / 2
+  const cy = size / 2 + 4
+  const r = size / 2 - 20
+  const strokeW = size * 0.1
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const pt = (angleDeg: number, radius: number) => ({
+    x: cx + radius * Math.cos(toRad(angleDeg)),
+    y: cy - radius * Math.sin(toRad(angleDeg))
+  })
+  const clamped = Math.max(0, Math.min(max, value))
+  const angleFor = (v: number) => 180 - (v / max) * 180
+
+  const bands: { from: number; to: number; color: string }[] = [
+    { from: 0, to: max * 0.35, color: '#ef4444' },
+    { from: max * 0.35, to: max * 0.65, color: '#f59e0b' },
+    { from: max * 0.65, to: max, color: '#10b981' }
+  ]
+
+  function arcPath(fromV: number, toV: number) {
+    const p1 = pt(angleFor(fromV), r)
+    const p2 = pt(angleFor(toV), r)
+    return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+  }
+
+  const needleTip = pt(angleFor(clamped), r - strokeW * 0.85)
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size * 0.6} viewBox={`0 0 ${size} ${size * 0.6}`} style={{ animation: 'popUp .4s ease both' }}>
+        {bands.map((b, i) => (
+          <path key={i} d={arcPath(b.from, b.to)} fill="none" stroke={b.color} strokeWidth={strokeW} strokeLinecap="round" opacity={0.88} />
+        ))}
+        <line x1={cx} y1={cy} x2={needleTip.x} y2={needleTip.y} stroke="#1e293b" strokeWidth={2.5} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={4.5} fill="#1e293b" />
+      </svg>
+      <div className="-mt-1 text-2xl font-bold text-slate-800 font-display">{Math.round(value)}%</div>
+      {label && <div className="text-xs text-slate-500 mt-0.5 text-center">{label}</div>}
+    </div>
+  )
+}
+
+// True dual-axis line chart: each series is scaled to its own min/max, so two
+// metrics on very different scales (e.g. revenue in lakhs vs. seat counts) can
+// share one time axis without one line flattening the other.
+export function DualAxisChart({
+  labels,
+  seriesA,
+  seriesB,
+  height = 220
+}: {
+  labels: string[]
+  seriesA: { name: string; values: number[]; color: string; format?: (n: number) => string }
+  seriesB: { name: string; values: number[]; color: string; format?: (n: number) => string }
+  height?: number
+}) {
+  const width = 100
+  const padTop = 10
+  const padBot = 18
+  const plot = height - padTop - padBot
+  const fmtA = seriesA.format ?? ((n: number) => String(Math.round(n)))
+  const fmtB = seriesB.format ?? ((n: number) => String(Math.round(n)))
+
+  const toPoints = (values: number[]) => {
+    const max = Math.max(...values, 1)
+    const min = Math.min(...values, 0)
+    const span = max - min || 1
+    return values
+      .map((v, i) => {
+        const x = (i / Math.max(1, values.length - 1)) * width
+        const y = padTop + (1 - (v - min) / span) * plot
+        return `${x.toFixed(2)},${y.toFixed(2)}`
+      })
+      .join(' ')
+  }
+
+  const xTickEvery = Math.max(1, Math.floor(labels.length / 6))
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="overflow-visible">
+        {[0, 0.25, 0.5, 0.75, 1].map((g) => (
+          <line key={g} x1={0} x2={width} y1={padTop + g * plot} y2={padTop + g * plot} stroke="#e2e8f0" strokeWidth={0.3} />
+        ))}
+        <polyline
+          points={toPoints(seriesA.values)}
+          fill="none"
+          stroke={seriesA.color}
+          strokeWidth={0.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          pathLength={1}
+          style={{ strokeDasharray: 1, strokeDashoffset: 1, animation: 'drawIn 1.1s ease forwards' }}
+        />
+        <polyline
+          points={toPoints(seriesB.values)}
+          fill="none"
+          stroke={seriesB.color}
+          strokeWidth={0.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          pathLength={1}
+          style={{ strokeDasharray: 1, strokeDashoffset: 1, animation: 'drawIn 1.1s ease forwards' }}
+        />
+      </svg>
+      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+        {labels
+          .filter((_, i) => i % xTickEvery === 0)
+          .map((l, i) => (
+            <span key={i}>{l}</span>
+          ))}
+      </div>
+      <div className="flex gap-4 mt-2">
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: seriesA.color }} />
+          {seriesA.name} <span className="text-slate-400">({fmtA(seriesA.values[seriesA.values.length - 1])})</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: seriesB.color }} />
+          {seriesB.name} <span className="text-slate-400">({fmtB(seriesB.values[seriesB.values.length - 1])})</span>
+        </div>
+      </div>
+    </div>
+  )
+}

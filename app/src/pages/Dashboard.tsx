@@ -1,25 +1,47 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Card, currency, currencyK, DemandBadge, EmptyState, MultiLineChart, PageHeader, pct, ProgressBar, StatCard } from '../components/ui'
+import {
+  Card,
+  currency,
+  currencyK,
+  DemandBadge,
+  DualAxisChart,
+  EmptyState,
+  fmtDateShort,
+  fmtWeekday,
+  Gauge,
+  MultiLineChart,
+  num,
+  PageHeader,
+  pct,
+  ProgressBar,
+  Table
+} from '../components/ui'
 import LiveTicker from '../components/LiveTicker'
 import {
   competitorAvgForRoute,
-  dashboardKpis,
+  earningsTrend,
   enrichedTrips,
   getConfig,
+  past30DaysReport,
+  pastDayReport,
   priceAlerts,
   recommendationFor,
   revenueTrend,
   routePerformance,
+  weekOnWeekRows,
   type EnrichedTrip
 } from '../lib/selectors'
 
 export default function Dashboard() {
-  const kpis = dashboardKpis()
   const config = getConfig()
   const trend = revenueTrend(14)
   const alerts = priceAlerts(config).slice(0, 5)
   const routes = routePerformance().slice(0, 5)
+  const pastDay = pastDayReport()
+  const past30 = past30DaysReport()
+  const earnings = earningsTrend(30)
+  const wow = weekOnWeekRows(6)
 
   const nearTerm = enrichedTrips().filter((e) => e.daysToDeparture <= 14)
   const bands = { low: 0, moderate: 0, high: 0, veryHigh: 0 }
@@ -67,16 +89,90 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <StatCard label="Revenue (30d, dynamic)" value={currencyK(kpis.revenue30d)} tone="good" />
-        <StatCard
-          label="Uplift vs static pricing"
-          value={`${kpis.upliftPct >= 0 ? '+' : ''}${kpis.upliftPct.toFixed(1)}%`}
-          tone={kpis.upliftPct >= 0 ? 'good' : 'danger'}
-          hint="trailing 30 days"
-        />
-        <StatCard label="Departing today" value={String(kpis.departingToday)} hint="trips across the fleet" />
-        <StatCard label="Avg. seat occupancy" value={pct(kpis.avgOccupancy)} hint={`avg demand score ${Math.round(kpis.avgDemand)}/100`} />
+      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+        {pastDay && (
+          <Card className="p-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="font-semibold text-slate-800">Past day report</h3>
+              <span className="text-xs text-slate-400">{fmtDateShort(pastDay.date)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-3 py-2.5">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wide">Total routes</p>
+                <p className="text-xl font-bold text-slate-900 font-display">{pastDay.routesOperated}</p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-3 py-2.5">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wide">No. of trips</p>
+                <p className="text-xl font-bold text-slate-900 font-display">{pastDay.tripsCount}</p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {past30 && (
+          <Card className="p-4">
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="font-semibold text-slate-800">Past 30 days report</h3>
+              <span className="text-xs text-slate-400">
+                {fmtDateShort(past30.from)} to {fmtDateShort(past30.to)}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Revenue</p>
+                <p className="text-base font-bold text-slate-900 font-display">{currencyK(past30.revenue)}</p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Seats sold</p>
+                <p className="text-base font-bold text-slate-900 font-display">{num(past30.seatsSold)}</p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">ASP</p>
+                <p className="text-base font-bold text-slate-900 font-display">{currency(past30.asp)}</p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Occupancy</p>
+                <p className="text-base font-bold text-slate-900 font-display">{pct(past30.occupancyPct)}</p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Main | Via</p>
+                <p className="text-base font-bold text-slate-900 font-display">
+                  {Math.round(past30.mainPct)}% <span className="text-slate-400 text-sm">/ {Math.round(past30.viaPct)}%</span>
+                </p>
+              </div>
+              <div className="border-l-4 border-brand-500 bg-slate-50 rounded-r-lg px-2.5 py-2">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Online | Offline</p>
+                <p className="text-sm font-bold text-slate-900 font-display">
+                  {num(past30.onlineBookings)} <span className="text-slate-400">/ {num(past30.offlineBookings)}</span>
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+        {pastDay && (
+          <Card className="p-4">
+            <h3 className="font-semibold text-slate-800 mb-1">Past day occupancy</h3>
+            <p className="text-xs text-slate-400 mb-2">Self vs. estimated market average</p>
+            <div className="flex items-center justify-around">
+              <Gauge value={pastDay.selfOccupancyPct} label="Self occupancy" size={140} />
+              <Gauge value={pastDay.marketOccupancyPct} label="Market occupancy" size={140} />
+            </div>
+          </Card>
+        )}
+
+        <Card className="p-4 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-slate-800">Past 30 days earning overview</h3>
+          </div>
+          <DualAxisChart
+            labels={earnings.map((d) => d.date.slice(5))}
+            seriesA={{ name: 'Revenue', values: earnings.map((d) => d.dynamicRevenue), color: '#f59e0b', format: (n) => currencyK(n) }}
+            seriesB={{ name: 'Seats sold', values: earnings.map((d) => d.seatsSold), color: '#4f46e5', format: (n) => num(n) }}
+          />
+        </Card>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mb-4">
@@ -121,7 +217,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
         <Card className="p-4 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-slate-800">Price alerts — recommendation vs. applied fare</h3>
@@ -177,6 +273,53 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      <Card className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <h3 className="font-semibold text-slate-800">Week-on-week report</h3>
+          <span className="text-xs text-slate-400">— same weekday, last {wow.length} weeks</span>
+        </div>
+        <Table
+          columns={[
+            'Date',
+            'No. of trips',
+            'Revenue',
+            'Revenue/trip',
+            'ASP',
+            'Occupancy',
+            'Adv. bkg',
+            'Seats sold',
+            'Multi bookings',
+            'Post-dept. bkg',
+            'Main | Via',
+            'Online | Offline'
+          ]}
+        >
+          {wow.map((d) => (
+            <tr key={d.date} className="hover:bg-slate-50">
+              <td className="py-2.5 px-3 font-medium text-slate-800 whitespace-nowrap">
+                {d.date}
+                <span className="block text-[11px] text-slate-400 font-normal">{fmtWeekday(d.date)}</span>
+              </td>
+              <td className="py-2.5 px-3 text-slate-600">{d.tripsCount}</td>
+              <td className="py-2.5 px-3 text-slate-600">{currency(d.dynamicRevenue)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{currency(d.dynamicRevenue / d.tripsCount)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{currency(d.dynamicRevenue / d.seatsSold)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{pct(d.selfOccupancyPct)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{num(d.advanceBookings)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{num(d.seatsSold)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{num(d.multiBookings)}</td>
+              <td className="py-2.5 px-3 text-slate-600">{num(d.postDepartureBookings)}</td>
+              <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                {num(d.mainSeats)} | {num(d.viaSeats)}
+              </td>
+              <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
+                {num(d.onlineBookings)} | {num(d.offlineBookings)}
+              </td>
+            </tr>
+          ))}
+        </Table>
+      </Card>
     </div>
   )
 }

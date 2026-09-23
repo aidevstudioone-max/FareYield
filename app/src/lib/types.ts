@@ -72,6 +72,17 @@ export interface DailyRevenueRecord {
   staticRevenue: number
   seatsSold: number
   avgDemandScore: number
+  tripsCount: number
+  routesOperated: number
+  selfOccupancyPct: number
+  marketOccupancyPct: number // estimated competitor/market-wide occupancy, for benchmarking
+  mainSeats: number // seats sold on the direct/main route
+  viaSeats: number // seats sold on connecting/via legs
+  onlineBookings: number
+  offlineBookings: number
+  advanceBookings: number // booked more than 3 days out
+  multiBookings: number // bookings of 2+ seats in one transaction
+  postDepartureBookings: number // boarded at an intermediate stop after departure
 }
 
 export interface PriceHistoryEntry {

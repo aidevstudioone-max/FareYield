@@ -4,7 +4,7 @@
 // file in the app should touch localStorage directly.
 
 const PREFIX = 'fyield:'
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export function load<T>(key: string, fallback: T): T {
   try {
