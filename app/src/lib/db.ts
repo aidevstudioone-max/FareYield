@@ -69,5 +69,7 @@ export const COLLECTIONS = {
   dailyRevenue: 'daily_revenue',
   priceHistory: 'price_history',
   pricingConfig: 'pricing_config',
-  settings: 'settings'
+  settings: 'settings',
+  seatOverrides: 'seat_overrides',
+  seatLimits: 'seat_limits'
 } as const

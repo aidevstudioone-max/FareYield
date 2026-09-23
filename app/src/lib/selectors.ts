@@ -1,6 +1,7 @@
-import { COLLECTIONS, getAll, load } from './db'
+import { COLLECTIONS, getAll, load, save, upsert } from './db'
 import { computeRecommendation } from './pricingEngine'
-import type { Bus, CompetitorFare, DailyRevenueRecord, PriceHistoryEntry, PricingConfig, Route, Trip } from './types'
+import { generateSeatMap, type SeatInfo } from './seatMap'
+import type { Bus, CompetitorFare, DailyRevenueRecord, PriceHistoryEntry, PricingConfig, Route, SeatLimits, SeatOverride, Trip } from './types'
 import { DEFAULT_PRICING_CONFIG } from './pricingEngine'
 import { daysBetween, todayISO } from './format'
 
@@ -206,6 +207,90 @@ export function weekOnWeekRows(weeks = 6): DailyRevenueRecord[] {
     .filter((d) => new Date(d.date).getDay() === targetDow)
     .slice(-weeks)
     .reverse()
+}
+
+export function seatMapForTrip(trip: Trip, bus: Bus): SeatInfo[] {
+  return generateSeatMap(trip, bus)
+}
+
+export function seatOverridesForTrip(tripId: string): Record<string, number> {
+  const prefix = `${tripId}:`
+  return Object.fromEntries(
+    getAll<SeatOverride>(COLLECTIONS.seatOverrides)
+      .filter((o) => o.id.startsWith(prefix))
+      .map((o) => [o.id.slice(prefix.length), o.price])
+  )
+}
+
+export function setSeatOverride(tripId: string, seatId: string, price: number): void {
+  upsert<SeatOverride>(COLLECTIONS.seatOverrides, { id: `${tripId}:${seatId}`, price })
+}
+
+export function clearSeatOverride(tripId: string, seatId: string): void {
+  const key = `${tripId}:${seatId}`
+  const items = getAll<SeatOverride>(COLLECTIONS.seatOverrides).filter((o) => o.id !== key)
+  save(COLLECTIONS.seatOverrides, items)
+}
+
+const DEFAULT_SEAT_LIMITS: Omit<SeatLimits, 'id'> = {
+  lower: null,
+  upper: null,
+  cutSeatDiscount: true,
+  postDepartureDiscount: true,
+  viaDiscountPct: 0
+}
+
+export function getSeatLimits(tripId: string): SeatLimits {
+  const found = getAll<SeatLimits>(COLLECTIONS.seatLimits).find((l) => l.id === tripId)
+  return found ?? { id: tripId, ...DEFAULT_SEAT_LIMITS }
+}
+
+export function saveSeatLimits(limits: SeatLimits): void {
+  upsert<SeatLimits>(COLLECTIONS.seatLimits, limits)
+}
+
+// Applies manual overrides, bus-level floor/ceiling limits, and the two
+// clearance-discount toggles (only for seats that aren't already booked) to
+// get the final displayed price for one seat.
+export function priceForSeat(seat: SeatInfo, overrides: Record<string, number>, limits: SeatLimits): number {
+  let price = overrides[seat.id] ?? seat.basePrice
+  if (!seat.isBooked) {
+    if (limits.cutSeatDiscount) price *= 0.92
+    if (limits.postDepartureDiscount) price *= 0.95
+  }
+  if (limits.lower != null) price = Math.max(limits.lower, price)
+  if (limits.upper != null) price = Math.min(limits.upper, price)
+  return Math.round(price / 5) * 5
+}
+
+export interface TripPerformance {
+  occupancyPct: number
+  revenue: number
+  asp: number
+}
+
+export function currentTripPerformance(seats: SeatInfo[], overrides: Record<string, number>, limits: SeatLimits): TripPerformance {
+  const booked = seats.filter((s) => s.isBooked)
+  const revenue = booked.reduce((s, seat) => s + priceForSeat(seat, overrides, limits), 0)
+  return {
+    occupancyPct: seats.length ? (booked.length / seats.length) * 100 : 0,
+    revenue,
+    asp: booked.length ? revenue / booked.length : 0
+  }
+}
+
+// Same-weekday-last-week comparison. There's no real historical trip to read
+// (this bus/route/time didn't exist a week ago in the seed), so this is a
+// deterministic estimate seeded off the trip id — consistent every time you
+// open this trip, not re-randomized per render.
+export function lastDowPerformance(trip: Trip): TripPerformance {
+  let h = 0
+  for (let i = 0; i < trip.id.length; i++) h = (h * 31 + trip.id.charCodeAt(i)) >>> 0
+  const jitter = ((h % 1000) / 1000 - 0.5) * 24 // -12..+12 points
+  const occupancyPct = Math.max(35, Math.min(100, (trip.bookedSeats / trip.totalSeats) * 100 + jitter))
+  const seatsSold = Math.round((occupancyPct / 100) * trip.totalSeats)
+  const asp = trip.basePrice * (0.95 + ((h >> 3) % 1000) / 1000 / 2)
+  return { occupancyPct, revenue: Math.round(seatsSold * asp), asp }
 }
 
 export function priceHistoryForTrip(tripId: string): PriceHistoryEntry[] {

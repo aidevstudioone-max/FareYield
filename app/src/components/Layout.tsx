@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import * as Icons from 'lucide-react'
 import { COLLECTIONS, load } from '../lib/db'
+import { Modal } from './ui'
 
 function Icon({ name, className, size = 17 }: { name: string; className?: string; size?: number }) {
   const Cmp = (Icons as any)[name] || Icons.Circle
@@ -25,6 +26,7 @@ const navItemCls = (isActive: boolean) =>
 
 export default function Layout() {
   const [open, setOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const { pathname } = useLocation()
   const settings = load<{ companyName: string }>(COLLECTIONS.settings, { companyName: 'FareYield Transit Ops' })
 
@@ -73,12 +75,42 @@ export default function Layout() {
               </span>
             </div>
           </div>
-          <Badge />
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="text-slate-400 hover:text-brand-600 transition-colors"
+              title="What is dynamic pricing?"
+            >
+              <Icon name="HelpCircle" size={19} />
+            </button>
+            <Badge />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
+
+      {helpOpen && (
+        <Modal title="What is dynamic pricing?" onClose={() => setHelpOpen(false)}>
+          <ul className="space-y-3 text-sm text-slate-600 list-disc list-outside pl-4">
+            <li>
+              Dynamic pricing is a win–win: it can lift <strong>occupancy and revenue at the same time</strong>, instead of trading one off against
+              the other.
+            </li>
+            <li>Raising the fare when a trip is filling up fast captures demand you'd otherwise leave on the table.</li>
+            <li>
+              In the off-season, when occupancy is low, a modest fare cut usually sells enough extra seats to more than make up for the lower
+              price per seat — so the same lever grows revenue at both ends of the demand curve.
+            </li>
+            <li>
+              Example: a festival departure next month is already 50% booked. Demand is clearly outrunning supply, so the engine raises the
+              fare — every seat sold from here earns more, not less.
+            </li>
+            <li>That's the core idea: let price track real demand in both directions, instead of leaving it fixed and leaving money on the table either way.</li>
+          </ul>
+        </Modal>
+      )}
     </div>
   )
 }

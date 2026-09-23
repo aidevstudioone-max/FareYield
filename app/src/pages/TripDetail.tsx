@@ -163,7 +163,10 @@ export default function TripDetail() {
         />
       </Card>
 
-      <div className="mt-4">
+      <div className="mt-4 flex gap-2">
+        <Button variant="secondary" onClick={() => navigate(`/trips/${trip.id}/seats`)}>
+          Open seat-level pricing →
+        </Button>
         <Button variant="ghost" onClick={() => navigate('/simulator')}>
           Open in Simulator →
         </Button>

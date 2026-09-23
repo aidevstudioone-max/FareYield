@@ -85,6 +85,20 @@ export interface DailyRevenueRecord {
   postDepartureBookings: number // boarded at an intermediate stop after departure
 }
 
+export interface SeatOverride {
+  id: string // `${tripId}:${seatId}`
+  price: number
+}
+
+export interface SeatLimits {
+  id: string // tripId
+  lower: number | null
+  upper: number | null
+  cutSeatDiscount: boolean
+  postDepartureDiscount: boolean
+  viaDiscountPct: number
+}
+
 export interface PriceHistoryEntry {
   tripId: string
   timestamp: string

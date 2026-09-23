@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import RoutesPage from './pages/RoutesPage'
 import Trips from './pages/Trips'
 import TripDetail from './pages/TripDetail'
+import SeatPricing from './pages/SeatPricing'
 import Simulator from './pages/Simulator'
 import PricingRules from './pages/PricingRules'
 import Analytics from './pages/Analytics'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/routes" element={<RoutesPage />} />
           <Route path="/trips" element={<Trips />} />
           <Route path="/trips/:id" element={<TripDetail />} />
+          <Route path="/trips/:id/seats" element={<SeatPricing />} />
           <Route path="/simulator" element={<Simulator />} />
           <Route path="/rules" element={<PricingRules />} />
           <Route path="/analytics" element={<Analytics />} />
